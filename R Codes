@@ -1,0 +1,65 @@
+# Load required libraries
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(writexl)
+
+# Load the dataset
+file_path <- "path_to_your_file/THE VOICE OF KAKUMA SURVEY Data Cleaning.xlsx"
+sheet_names <- excel_sheets(file_path)
+
+# Read all sheets into a list
+data_list <- lapply(sheet_names, function(sheet) {
+  read_excel(file_path, sheet = sheet)
+})
+
+# Assign sheet names as list names
+names(data_list) <- sheet_names
+
+# Explore the data
+summary(data_list[[1]])  # Example: summary of the first sheet
+
+# Data cleaning function
+clean_data <- function(df) {
+  df %>%
+    mutate(across(everything(), ~ replace_na(.x, "Unknown"))) %>%
+    filter(!if_all(everything(), is.na))
+}
+
+# Apply cleaning to all sheets
+cleaned_data_list <- lapply(data_list, clean_data)
+
+# Example Analysis: Aggregations and Visualizations
+# Aggregating data from "Form Responses 1"
+responses <- cleaned_data_list[["Form Responses 1"]]
+
+# Summarize country of origin
+country_summary <- responses %>%
+  group_by(`COUNTRY OF ORIGIN`) %>%
+  summarize(Count = n()) %>%
+  arrange(desc(Count))
+
+# Visualize country of origin distribution
+ggplot(country_summary, aes(x = reorder(`COUNTRY OF ORIGIN`, Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Country of Origin Distribution", x = "Country", y = "Count")
+
+# Summarize reasons for leaving country
+reason_summary <- responses %>%
+  group_by(`WHY DID YOU LEAVE YOUR COUNTRY OF ORIGIN?`) %>%
+  summarize(Count = n()) %>%
+  arrange(desc(Count))
+
+# Visualize reasons for leaving
+ggplot(reason_summary, aes(x = reorder(`WHY DID YOU LEAVE YOUR COUNTRY OF ORIGIN?`, Count), y = Count)) +
+  geom_bar(stat = "identity", fill = "darkgreen") +
+  coord_flip() +
+  labs(title = "Reasons for Leaving Country of Origin", x = "Reason", y = "Count")
+
+# Save cleaned and summary data to Excel
+write_xlsx(cleaned_data_list, path = "Cleaned_VOICE_OF_KAKUMA_SURVEY_Data.xlsx")
+write_xlsx(list(Country_Summary = country_summary, Reason_Summary = reason_summary),
+           path = "Summary_VOICE_OF_KAKUMA_Data.xlsx")
+
+
